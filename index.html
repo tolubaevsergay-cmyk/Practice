@@ -138,7 +138,7 @@
         let typingMessage = null;
         let typingTimeout = null;
         let ans
-        let nameVariable = ''
+        let nameVariable
         let valueVariable
         function createMessage(text, sender) {
             const message = document.createElement('div')
@@ -165,7 +165,11 @@
             let userText = text.toLowerCase()
             let numbers = []
             let sign = ''
-
+            if(userText.startsWith('/stop')){
+                started = false
+                IsWaitingSign = false
+                return 'Всего доброго, если хочешь поговорить пиши /start'
+            }
             if(userText.startsWith('/start')){
                 started = true
                 return 'Привет, меня зовут Чат-бот, а как зовут тебя?'
@@ -183,7 +187,7 @@
                     sign = userText
                     IsWaitingSign = false
                     ans = calculator(currentNumbers, sign)
-                    return calculator(currentNumbers, sign)
+                    return 'Результат: ' + calculator(currentNumbers, sign)
                 }
             }
             if(!IsWaitingSign && userText.startsWith('/set:')){
@@ -193,7 +197,8 @@
                 return `Переменная ${nameVariable} = ${valueVariable} сохранена`
             }
             if(!IsWaitingSign && /[0-9]/.test(userText) && userText.startsWith('/numbers:')){
-                const parts = userText.split(/[,\s;]+/)
+                let numbersPart = userText.substring(9).trim()
+                const parts = numbersPart.split(/[,\s;]+/)
                 const validNumbers = []
         
                 for(let part of parts){
@@ -205,10 +210,10 @@
                         }
                     }
                     }
-                    else if(part.includes('ans')){
+                    else if(part === 'ans' && ans !== undefined && ans !== null){
                         validNumbers.push(ans)
                     }
-                    else if(part.includes(nameVariable)){
+                    else if(part.includes(nameVariable) && nameVariable !== undefined){
                         validNumbers.push(valueVariable)
                     }
                     else {
