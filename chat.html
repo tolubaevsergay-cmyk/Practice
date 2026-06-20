@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat-Bot</title>
+    <style>
+        @font-face {
+            font-family: 'MyCustomFont';
+            src: url('fa-brands-400.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        .header{
+            position: fixed;
+            width: 100%;
+            height: 100px;
+            background-color: #282828;
+            color: white;
+            text-align: center;
+        }
+        body {
+        font-family: 'MyCustomFont', Arial, sans-serif;
+        background-color: #282828;
+        overflow: hidden;
+        height: 100vh;
+        }
+        .main{
+            position: fixed;
+            overflow-y: auto;
+            top: 100px;
+            bottom: 100px;
+            width: calc(100% - 20px);
+        }
+        .footer{
+            position: fixed;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            height: 100px;
+            bottom: 0px;
+        }
+        .input{
+            height: 30px;
+            width: 1500px;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 24px;
+            font-size: 15px;
+            outline: none;
+            transition: 0.2s;
+        }
+        .send-btn {
+            position: relative;
+            top: 8px;
+            right: 60px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .message {
+        display: flex;
+        gap: 10px;
+        max-width: 70%;
+        align-self: flex-start;
+        padding-top: 10px;
+        }
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .message-avatar img {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+    }
+
+    .message-text {
+        padding: 8px 15px;
+        border-radius: 18px;
+        word-wrap: break-word;
+        max-width: 100%;
+    }
+
+    .message.user .message-text {
+        background: #f8c35b;
+        color: black;
+    }
+
+    .message.bot .message-text {
+        background: white;
+        color: black;
+    }
+    @keyframes dotBounce {
+    0%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    }
+
+    .message.bot .message-text span {
+        color: #888;
+    }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>Чат-бот</h1></div>
+    <div class="main" id="main"></div>
+    <div class="footer">
+        <input type="text" class="input" id="messageInput" autofocus>
+        <button id="sendBtn" class="send-btn">
+                    ➤
+                </button>
+    </div>
+    <script>
+        const main = document.getElementById('main')
+        const button = document.getElementById('sendBtn')
+        const input = document.getElementById('messageInput')
+        let started = false
+        let currentNumbers = []
+        let IsWaitingSign = false
+        let typingMessage = null;
+        let typingTimeout = null;
+        let ans
+        let nameVariable = ''
+        let valueVariable
+        function createMessage(text, sender) {
+            const message = document.createElement('div')
+            message.className = `message ${sender}`
+            
+            const avatar = document.createElement('div')
+            avatar.className = 'message-avatar'
+            const avatarImg = document.createElement('img')
+            avatarImg.src = sender === 'user' ? 'user_avatar.png' : 'bot_avatar.png'
+            avatarImg.alt = 'avatar'
+            avatar.appendChild(avatarImg)
+            
+            const textDiv = document.createElement('div')
+            textDiv.className = 'message-text'
+            textDiv.textContent = text;
+            
+            message.appendChild(avatar)
+            message.appendChild(textDiv)
+            
+            main.prepend(message)
+            main.scrollTop = 0
+        }
+        function botMessage(text){
+            let userText = text.toLowerCase()
+            let numbers = []
+            let sign = ''
+
+            if(userText.startsWith('/start')){
+                started = true
+                return 'Привет, меня зовут Чат-бот, а как зовут тебя?'
+                
+            }
+            if(!started){
+                return 'Введите команду /start, для начала общения'
+            }
+            if(userText.startsWith('/name:')){
+                const name = text.substring(6).trim()
+                return `Привет ${name}, приятно познакомится. Я умею считать, введи числа которые надо посчитать`
+            }
+            if(IsWaitingSign && currentNumbers.length > 0){
+                if(userText.includes('+') || userText.includes('-') || userText.includes('*') || userText.includes('/') || userText.includes('gcd') || userText.includes('avg') || userText.includes('min') || userText.includes('max')){
+                    sign = userText
+                    IsWaitingSign = false
+                    ans = calculator(currentNumbers, sign)
+                    return calculator(currentNumbers, sign)
+                }
+            }
+            if(!IsWaitingSign && userText.startsWith('/set:')){
+                const variable = userText.match(/\/set:\s*(\w+)\s*=\s*(\d+)/)
+                nameVariable = variable[1]
+                valueVariable = Number(variable[2])
+                return `Переменная ${nameVariable} = ${valueVariable} сохранена`
+            }
+            if(!IsWaitingSign && /[0-9]/.test(userText) && userText.startsWith('/numbers:')){
+                const parts = userText.split(/[,\s;]+/)
+                const validNumbers = []
+        
+                for(let part of parts){
+                    if(part.includes('..')){
+                        const [start, end] = part.split('..').map(Number)
+                        if(!isNaN(start) && !isNaN(end) && start <= end){
+                            for(let i = start; i <= end; i++){
+                            validNumbers.push(i)
+                        }
+                    }
+                    }
+                    else if(part.includes('ans')){
+                        validNumbers.push(ans)
+                    }
+                    else if(part.includes(nameVariable)){
+                        validNumbers.push(valueVariable)
+                    }
+                    else {
+                const num = Number(part)
+                if(!isNaN(num)){
+                    validNumbers.push(num)
+                }
+                    }
+            }
+                if(validNumbers.length > 0){
+                    currentNumbers = validNumbers
+                    IsWaitingSign = true
+                    return `Числа приняты. Введи действие: +, -, *, /, gcd, avg, min, max`
+                }
+            }  
+            return `Я не понимаю, введите другую команду!`
+        }
+        function calculator(numbers, sign){
+            let arr = []
+            let result
+            for(let number of numbers){
+                if(!isNaN(number)){
+                arr.push(number)
+                }
+            }
+            if (sign === '+'){
+                result = 0
+                for(let i = 0; i<arr.length; i++){
+                    result+=arr[i]
+                }
+            }
+            else if (sign === '-'){
+                result = arr[0]
+                for(let i = 0; i<arr.length; i++){
+                    result-=arr[i]
+                }
+            }
+            else if(sign === '*'){
+                result = 1
+                for(let i = 0; i<arr.length; i++){
+                    result*=arr[i]
+                }
+            }
+            else if(sign === '/'){
+                if (arr.some(num => num === 0)) {
+                return 'Ошибка: деление на ноль';
+            }
+                for(let i = 0; i<arr.length; i++){
+                    result/=arr[i]
+                }
+            }
+            else if(sign === 'min'){
+                result = Math.min(...arr)
+            }
+            else if(sign === 'max'){
+                result = Math.max(...arr)
+            }
+            else if(sign === 'avg'){
+                result = 0;
+                for(let i = 0; i<arr.length; i++){
+                    result+=arr[i]
+                }
+                result /= arr.length
+            }
+            else if(sign === 'gcd'){
+                if (arr.length === 1) result = Math.abs(arr[0])
+    
+                result = Math.abs(arr[0]);
+                for (let i = 1; i < arr.length; i++) {
+                    result = gcd(result, Math.abs(arr[i]))
+                }
+            }
+            return result
+        }
+        function gcd(a, b) {
+            while (b) {
+                [a, b] = [b, a % b];
+            }
+            return a;
+        }
+        function sendMessage() {
+            const text = input.value.trim();
+            
+            if (text === '') {
+                return;
+            }
+            
+            createMessage(text, 'user');
+            input.value = '';
+            input.focus();
+            
+            removeTyping();
+    
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
+
+            setTimeout(() => {
+                const response = botMessage(text);
+                createMessage(response, 'bot');
+            }, 300);
+        }
+        function showTyping() {
+    if (typingMessage) {
+        return;
+    }
+    
+    const message = document.createElement('div');
+    message.className = 'message user';
+    
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    const avatarImg = document.createElement('img');
+    avatarImg.src = 'user_avatar.png';
+    avatarImg.alt = 'avatar';
+    avatar.appendChild(avatarImg);
+    
+    const textDiv = document.createElement('div');
+    textDiv.className = 'message-text';
+    textDiv.style.display = 'flex';
+    textDiv.style.alignItems = 'center';
+    textDiv.style.gap = '4px';
+    textDiv.style.padding = '12px 20px';
+    textDiv.style.minHeight = '40px';
+    
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('span');
+        dot.textContent = '•';
+        dot.style.fontSize = '28px';
+        dot.style.lineHeight = '1';
+        dot.style.display = 'inline-block';
+        dot.style.animation = `dotBounce 1.4s ease-in-out ${i * 0.2}s infinite`;
+        textDiv.appendChild(dot);
+    }
+    
+    message.appendChild(avatar);
+    message.appendChild(textDiv);
+    
+    main.prepend(message);
+    main.scrollTop = 0;
+    
+    typingMessage = message;
+}
+
+function removeTyping() {
+    if (typingMessage) {
+        typingMessage.remove();
+        typingMessage = null;
+    }
+}
+        button.addEventListener('click', function(){
+            sendMessage()
+        })
+        input.addEventListener('keydown', function(e){
+            if(e.key === 'Enter'){
+                sendMessage()
+            }
+        })
+        input.addEventListener('input', function(){
+            const text = this.value.trim();
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
+    
+            if (text !== '') {
+                showTyping()
+            } else {
+                removeTyping();
+            }
+        })
+    </script>
+</body>
+</html>
